@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🏝️ Treasure Hunt Race</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #6ee7b7 0%, #3b82f6 100%);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    #mazeContainer {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      padding: 8px;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+      backdrop-filter: blur(8px);
+    }
+    .maze-cell {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      transition: all 0.3s ease;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .path { background: #f3f4f6; }
+    .wall { background: linear-gradient(45deg, #4b5563, #6b7280); }
+    .start { background: linear-gradient(45deg, #3b82f6, #60a5fa); }
+    .key { background: linear-gradient(45deg, #facc15, #fef08a); }
+    .goal { background: linear-gradient(45deg, #22c55e, #86efac); }
+    .ai-start { background: linear-gradient(45deg, #a855f7, #d8b4fe); }
+    .visited { background: #bfdbfe; }
+    .player {
+      background: linear-gradient(45deg, #ef4444, #f87171);
+      box-shadow: 0 0 15px rgba(239, 68, 68, 0.8);
+      animation: pulse 1.5s infinite;
+    }
+    .ai {
+      background: linear-gradient(45deg, #8b5cf6, #c4b5fd);
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.8);
+      animation: pulse 1.5s infinite;
+    }
+    .pop {
+      animation: pop 0.5s ease forwards;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    @keyframes pop {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.5); }
+      100% { transform: scale(1); }
+    }
+    .glass {
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    .btn {
+      transition: all 0.3s ease;
+      transform: perspective(1px) translateZ(0);
+    }
+    .btn:hover {
+      transform: scale(1.05) translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    .decor-left, .decor-right {
+      position: absolute;
+      top: 0;
+      width: 150px;
+      opacity: 0.3;
+    }
+    .decor-left { left: 0; transform: rotate(180deg); }
+    .decor-right { right: 0; }
+    @media (max-width: 640px) {
+      .maze-cell { width: 28px; height: 28px; }
+      #mazeContainer { gap: 1px; padding: 4px; }
+      .decor-left, .decor-right { width: 100px; }
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center p-4 sm:p-8">
+  <!-- Decorative Elements -->
+  <svg class="decor-left" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M50 20C60 10 80 10 90 20C100 30 110 50 100 60C90 70 70 70 60 60C50 50 40 30 50 20Z" fill="#34d399"/>
+    <path d="M30 40C40 30 60 30 70 40C80 50 90 70 80 80C70 90 50 90 40 80C30 70 20 50 30 40Z" fill="#22c55e"/>
+  </svg>
+  <svg class="decor-right" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M50 20C60 10 80 10 90 20C100 30 110 50 100 60C90 70 70 70 60 60C50 50 40 30 50 20Z" fill="#34d399"/>
+    <path d="M30 40C40 30 60 30 70 40C80 50 90 70 80 80C70 90 50 90 40 80C30 70 20 50 30 40Z" fill="#22c55e"/>
+  </svg>
+
+  <h1 class="text-4xl sm:text-5xl font-bold text-white mb-6 flex items-center gap-2">
+    <span>🏝️ Treasure Hunt Race</span>
+    <span class="text-2xl">🌴</span>
+  </h1>
+
+  <div class="glass rounded-xl p-4 sm:p-6 mb-6 w-full max-w-2xl">
+    <div class="flex flex-wrap gap-4 justify-center mb-4">
+      <button id="generateBtn" class="btn bg-green-500 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+        <span>🌱</span> New Maze
+      </button>
+      <button id="searchBtn" class="btn bg-blue-500 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+        <span>🔍</span> Show Path
+      </button>
+      <button id="restartBtn" class="btn bg-yellow-500 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+        <span>🔄</span> Restart
+      </button>
+      <button id="playBtn" class="btn bg-red-500 text-white px-4 py-2 rounded-lg flex items-center gap-2">
+        <span>▶️</span> Play
+      </button>
+    </div>
+
+    <div class="flex items-center justify-center gap-4 mb-4">
+      <label for="algoSelect" class="text-white font-semibold">Search Algorithm:</label>
+      <select id="algoSelect" class="border-2 border-white/20 bg-gray-800 text-white p-2 rounded-lg">
+        <option value="bfs">BFS</option>
+        <option value="dfs">DFS</option>
+        <option value="astar">A*</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="mazeContainer" class="mb-6"></div>
+  <p id="status" class="text-lg text-white font-semibold mb-6">Click Play to start the game!</p>
+
+  <div class="glass rounded-xl p-4 sm:p-6 w-full max-w-2xl mb-6">
+    <h3 class="text-xl font-bold text-white mb-2">📊 Algorithm Performance</h3>
+    <table id="perfTable" class="w-full text-white border-separate border-spacing-0">
+      <thead>
+        <tr class="bg-gray-800/50">
+          <th class="border border-white/20 px-4 py-2 rounded-tl-lg">Algorithm</th>
+          <th class="border border-white/20 px-4 py-2">Path Length</th>
+          <th class="border border-white/20 px-4 py-2">Nodes Explored</th>
+          <th class="border border-white/20 px-4 py-2 rounded-tr-lg">Time (ms)</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="flex flex-wrap gap-6 mb-6">
+    <p id="playerScore" class="text-lg text-white font-semibold bg-green-500/20 px-4 py-2 rounded-lg">Player Wins: 0</p>
+    <p id="aiScore" class="text-lg text-white font-semibold bg-purple-500/20 px-4 py-2 rounded-lg">AI Wins: 0</p>
+  </div>
+
+  <div class="glass rounded-xl p-4 sm:p-6 w-full max-w-2xl">
+    <h2 class="text-2xl font-bold text-white mb-2 flex items-center gap-2">
+      <span>🕹️ How to Play</span>
+      <span>🎮</span>
+    </h2>
+    <ul class="list-disc pl-5 text-white">
+      <li>Use <strong>W A S D</strong> to move the player (red).</li>
+      <li>Collect the <strong>key (yellow)</strong> before reaching the <strong>treasure (green)</strong>.</li>
+      <li>Press <strong>Play</strong> to race against the AI (purple).</li>
+      <li>Use <strong>Show Path</strong> to test BFS / DFS / A* on the same maze.</li>
+      <li>Path is shown in <span class="bg-blue-200 text-gray-800 px-1 rounded">light blue</span>.</li>
+      <li>Score is kept until you generate a new maze.</li>
+    </ul>
+  </div>
+
+  <audio id="winSound" src="/static/win.mp3"></audio>
+  <audio id="loseSound" src="/static/lose.mp3"></audio>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
